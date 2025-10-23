@@ -20,7 +20,9 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
+            scroll-behavior: smooth;
         }
         
         .container {
@@ -32,6 +34,8 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             margin-top: 20px;
             text-align: center;
+            /* overflow-y: auto; */
+            /* max-height: 90vh; */
         }
         
         h1 {
@@ -73,6 +77,8 @@
             transition: all 0.3s;
             font-weight: bold;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            position: relative;
+            z-index: 10;
         }
         
         .btn:hover {
@@ -268,6 +274,7 @@
         @media (max-width: 600px) {
             .container {
                 padding: 15px;
+                max-height: 95vh;
             }
             
             h1 {
@@ -381,6 +388,15 @@
     </div>
 
     <script>
+        // Define catTypes array for use in the script
+        const catTypes = [
+            { id: 'tabby', name: 'Tabby', color: '#FFD700', earnings: 1 },
+            { id: 'persian', name: 'Persian', color: '#FF69B4', earnings: 2 },
+            { id: 'siamese', name: 'Siamese', color: '#87CEEB', earnings: 3 },
+            { id: 'maine-coon', name: 'Maine Coon', color: '#9370DB', earnings: 5 },
+            { id: 'bengal', name: 'Bengal', color: '#FF4500', earnings: 7 }
+        ];
+        
         let currentGameId = '';
         let currentUsername = '';
         let playerElement = null;
@@ -431,17 +447,24 @@
             gameLoopInterval = setInterval(updateGame, 100);
         }
         
+        // Show form function
         function showForm(formType) {
-            document.getElementById('createForm').classList.remove('active');
-            document.getElementById('joinForm').classList.remove('active');
+            // Hide all forms
+            const createForm = document.getElementById('createForm');
+            const joinForm = document.getElementById('joinForm');
             
-            if (formType === 'create') {
-                document.getElementById('createForm').classList.add('active');
-            } else {
-                document.getElementById('joinForm').classList.add('active');
+            if (createForm) createForm.classList.remove('active');
+            if (joinForm) joinForm.classList.remove('active');
+            
+            // Show the selected form
+            if (formType === 'create' && createForm) {
+                createForm.classList.add('active');
+            } else if (formType === 'join' && joinForm) {
+                joinForm.classList.add('active');
             }
         }
         
+        // Create new game
         function createGame() {
             const username = document.getElementById('createUsername').value;
             if (!username) {
@@ -475,6 +498,7 @@
             });
         }
         
+        // Join existing game
         function joinGame() {
             const username = document.getElementById('joinUsername').value;
             const gameId = document.getElementById('gameId').value;
@@ -510,20 +534,33 @@
             });
         }
         
+        // Show game screen
         function showGameScreen() {
-            document.getElementById('createForm').classList.remove('active');
-            document.getElementById('joinForm').classList.remove('active');
-            document.getElementById('gameContainer').style.display = 'block';
+            const createForm = document.getElementById('createForm');
+            const joinForm = document.getElementById('joinForm');
+            const gameContainer = document.getElementById('gameContainer');
+            
+            if (createForm) createForm.classList.remove('active');
+            if (joinForm) joinForm.classList.remove('active');
+            if (gameContainer) gameContainer.style.display = 'block';
             isGameActive = true;
         }
         
+        // Leave game
         function leaveGame() {
             isGameActive = false;
             clearInterval(gameLoopInterval);
-            document.getElementById('gameContainer').style.display = 'none';
-            showForm('main');
+            const gameContainer = document.getElementById('gameContainer');
+            if (gameContainer) gameContainer.style.display = 'none';
+            
+            // Hide all forms to ensure home buttons are clickable
+            const createForm = document.getElementById('createForm');
+            const joinForm = document.getElementById('joinForm');
+            if (createForm) createForm.classList.remove('active');
+            if (joinForm) joinForm.classList.remove('active');
         }
         
+        // Update game state
         function updateGame() {
             if (!isGameActive) return;
             
@@ -549,35 +586,48 @@
             updateGameState();
         }
         
+        // Update player position
         function updatePlayerPosition() {
-            playerElement.style.left = player.x + 'px';
-            playerElement.style.top = player.y + 'px';
+            if (playerElement) {
+                playerElement.style.left = player.x + 'px';
+                playerElement.style.top = player.y + 'px';
+            }
         }
         
+        // Update game state
         function updateGameState() {
             // Update player info
-            document.getElementById('playerMoney').textContent = Math.floor(player.money);
-            document.getElementById('moneyPerSecond').textContent = player.moneyPerSecond;
-            document.getElementById('catCount').textContent = player.cats.length;
+            const playerMoney = document.getElementById('playerMoney');
+            const moneyPerSecond = document.getElementById('moneyPerSecond');
+            const catCount = document.getElementById('catCount');
+            
+            if (playerMoney) playerMoney.textContent = Math.floor(player.money);
+            if (moneyPerSecond) moneyPerSecond.textContent = player.moneyPerSecond;
+            if (catCount) catCount.textContent = player.cats.length;
             
             // Update player position on server
-            fetch(`/update-position/${currentGameId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ 
-                    username: currentUsername,
-                    x: player.x,
-                    y: player.y
+            if (currentGameId && currentUsername) {
+                fetch(`/update-position/${currentGameId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        username: currentUsername,
+                        x: player.x,
+                        y: player.y
+                    })
                 })
-            })
-            .catch(error => {
-                console.error('Error updating position:', error);
-            });
+                .catch(error => {
+                    console.error('Error updating position:', error);
+                });
+            }
         }
         
+        // Handle cat click
         function handleCatClick(event) {
+            if (!gameArea) return;
+            
             const rect = gameArea.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
@@ -598,7 +648,10 @@
             });
         }
         
+        // Collect cat
         function collectCat(catId) {
+            if (!currentGameId || !currentUsername) return;
+            
             fetch(`/collect-cat/${currentGameId}`, {
                 method: 'POST',
                 headers: {
@@ -636,21 +689,27 @@
         window.addEventListener('load', () => {
             // Create some sample cats for demo
             const base = document.getElementById('base');
-            base.style.left = '50px';
-            base.style.top = '50px';
+            if (base) {
+                base.style.left = '50px';
+                base.style.top = '50px';
+            }
             
             // Add some sample cats
-            for (let i = 0; i < 10; i++) {
-                const cat = document.createElement('div');
-                cat.className = 'cat';
-                cat.dataset.id = 'cat-' + i;
-                cat.style.left = (100 + Math.random() * 600) + 'px';
-                cat.style.top = (100 + Math.random() * 400) + 'px';
-                cat.style.background = catTypes[Math.floor(Math.random() * catTypes.length)].color;
-                gameArea.appendChild(cat);
+            if (gameArea) {
+                for (let i = 0; i < 10; i++) {
+                    const cat = document.createElement('div');
+                    cat.className = 'cat';
+                    cat.dataset.id = 'cat-' + i;
+                    cat.style.left = (100 + Math.random() * 600) + 'px';
+                    cat.style.top = (100 + Math.random() * 400) + 'px';
+                    cat.style.background = catTypes[Math.floor(Math.random() * catTypes.length)].color;
+                    gameArea.appendChild(cat);
+                }
             }
+            
+            // Initialize game state
+            initGame();
         });
     </script>
 </body>
 </html>
-
