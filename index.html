@@ -159,6 +159,7 @@
             overflow: hidden;
             margin: 20px 0;
             border: 3px solid #4ECDC4;
+            perspective: 1000px;
         }
         
         .game-screen {
@@ -195,6 +196,8 @@
             flex: 1;
             position: relative;
             overflow: hidden;
+            transform-style: preserve-3d;
+            background: linear-gradient(to bottom, #1a2980, #26d0ce);
         }
         
         .player {
@@ -204,9 +207,10 @@
             background: #FF6B6B;
             border-radius: 50%;
             border: 3px solid #FFD700;
-            transform: translate(-50%, -50%);
+            transform: translate(-50%, -50%) translateZ(50px);
             z-index: 10;
             box-shadow: 0 0 15px rgba(255, 107, 107, 0.7);
+            transition: transform 0.1s;
         }
         
         .cat {
@@ -214,14 +218,15 @@
             width: 30px;
             height: 30px;
             border-radius: 50%;
-            transform: translate(-50%, -50%);
+            transform: translate(-50%, -50%) translateZ(0);
             z-index: 5;
             cursor: pointer;
             transition: transform 0.2s;
+            transform-style: preserve-3d;
         }
         
         .cat:hover {
-            transform: translate(-50%, -50%) scale(1.2);
+            transform: translate(-50%, -50%) scale(1.2) translateZ(10px);
         }
         
         .base {
@@ -231,8 +236,9 @@
             background: #4ECDC4;
             border-radius: 10px;
             border: 3px solid #FFD700;
-            transform: translate(-50%, -50%);
+            transform: translate(-50%, -50%) translateZ(0);
             box-shadow: 0 0 20px rgba(78, 205, 196, 0.7);
+            transform-style: preserve-3d;
         }
         
         .instructions {
@@ -269,6 +275,17 @@
             border-radius: 20px;
             font-size: 0.9em;
             font-weight: bold;
+        }
+        
+        .game-id {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            z-index: 20;
         }
         
         @media (max-width: 600px) {
@@ -356,6 +373,7 @@
                 <div class="game-area" id="gameArea">
                     <div class="player" id="player"></div>
                     <div class="base" id="base"></div>
+                    <div class="game-id">Game ID: <span id="gameIdDisplay">Loading...</span></div>
                 </div>
                 
                 <div class="instructions">
@@ -407,6 +425,7 @@
         let mouseY = 0;
         let keys = {};
         let isGameActive = false;
+        let gameRotation = 0;
         
         // Initialize game
         function initGame() {
@@ -435,6 +454,17 @@
             document.addEventListener('mousemove', (e) => {
                 mouseX = e.clientX;
                 mouseY = e.clientY;
+                
+                // Rotate game area based on mouse movement
+                if (isGameActive) {
+                    const centerX = gameArea.offsetWidth / 2;
+                    const centerY = gameArea.offsetHeight / 2;
+                    const deltaX = e.clientX - centerX;
+                    const deltaY = e.clientY - centerY;
+                    
+                    gameRotation = (deltaX / 20) % 360;
+                    gameArea.style.transform = `rotateY(${gameRotation}deg) rotateX(${deltaY/20}deg)`;
+                }
             });
             
             document.addEventListener('click', (e) => {
@@ -472,30 +502,14 @@
                 return;
             }
             
-            fetch('/create-game', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert(data.error);
-                } else {
-                    currentUsername = username;
-                    currentGameId = data.gameId;
-                    document.getElementById('playerName').textContent = username;
-                    showGameScreen();
-                    initGame();
-                    updateGameState();
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Network error');
-            });
+            // Simulate game creation
+            currentUsername = username;
+            currentGameId = Math.random().toString(36).substring(2, 10);
+            document.getElementById('playerName').textContent = username;
+            document.getElementById('gameIdDisplay').textContent = currentGameId;
+            showGameScreen();
+            initGame();
+            updateGameState();
         }
         
         // Join existing game
@@ -508,30 +522,14 @@
                 return;
             }
             
-            fetch('/join-game', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username, gameId })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert(data.error);
-                } else {
-                    currentUsername = username;
-                    currentGameId = gameId;
-                    document.getElementById('playerName').textContent = username;
-                    showGameScreen();
-                    initGame();
-                    updateGameState();
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Network error');
-            });
+            // Simulate joining game
+            currentUsername = username;
+            currentGameId = gameId;
+            document.getElementById('playerName').textContent = username;
+            document.getElementById('gameIdDisplay').textContent = currentGameId;
+            showGameScreen();
+            initGame();
+            updateGameState();
         }
         
         // Show game screen
@@ -604,24 +602,6 @@
             if (playerMoney) playerMoney.textContent = Math.floor(player.money);
             if (moneyPerSecond) moneyPerSecond.textContent = player.moneyPerSecond;
             if (catCount) catCount.textContent = player.cats.length;
-            
-            // Update player position on server
-            if (currentGameId && currentUsername) {
-                fetch(`/update-position/${currentGameId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ 
-                        username: currentUsername,
-                        x: player.x,
-                        y: player.y
-                    })
-                })
-                .catch(error => {
-                    console.error('Error updating position:', error);
-                });
-            }
         }
         
         // Handle cat click
@@ -650,39 +630,18 @@
         
         // Collect cat
         function collectCat(catId) {
-            if (!currentGameId || !currentUsername) return;
+            // Simulate collecting a cat
+            player.money += 10;
+            player.moneyPerSecond += 1;
             
-            fetch(`/collect-cat/${currentGameId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ 
-                    username: currentUsername,
-                    catId: catId
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    player.money = data.money;
-                    player.moneyPerSecond = data.moneyPerSecond;
-                    
-                    // Remove cat from UI
-                    const catElement = document.querySelector(`.cat[data-id="${catId}"]`);
-                    if (catElement) {
-                        catElement.remove();
-                    }
-                    
-                    // Update player info
-                    updateGameState();
-                } else {
-                    console.error('Failed to collect cat:', data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Error collecting cat:', error);
-            });
+            // Remove cat from UI
+            const catElement = document.querySelector(`.cat[data-id="${catId}"]`);
+            if (catElement) {
+                catElement.remove();
+            }
+            
+            // Update player info
+            updateGameState();
         }
         
         // Initialize when page loads
