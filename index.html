@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Rob a Cat 3D</title>
+<title>Rob a Cat 3D - Smooth</title>
 <style>
 body { margin:0; overflow:hidden; background:#000; }
 #score { position:absolute; top:10px; left:10px; color:white; font-family:sans-serif; font-size:20px; }
@@ -13,145 +13,179 @@ body { margin:0; overflow:hidden; background:#000; }
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.min.js"></script>
 <script>
+
+// === Socket ===
 const socket = io();
 
-// Scene setup
+// === Scene Setup ===
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+scene.background = new THREE.Color(0x87ceeb);
+
+const camera = new THREE.PerspectiveCamera(65, window.innerWidth/window.innerHeight, 0.1, 1000);
+
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(innerWidth, innerHeight);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
-// Lighting
-const ambient = new THREE.AmbientLight(0x777777);
+// === Lights ===
+const ambient = new THREE.AmbientLight(0xffffff, 0.6);
 scene.add(ambient);
-const dir = new THREE.DirectionalLight(0xffffff, 1);
-dir.position.set(10, 20, 10);
-scene.add(dir);
 
-// Ground
-const groundGeo = new THREE.PlaneGeometry(200, 200);
-const groundMat = new THREE.MeshPhongMaterial({ color: 0x2a2a2a });
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+dirLight.position.set(20, 40, 20);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.width = 2048;
+dirLight.shadow.mapSize.height = 2048;
+dirLight.shadow.camera.near = 1;
+dirLight.shadow.camera.far = 100;
+scene.add(dirLight);
+
+// === Ground ===
+const groundGeo = new THREE.PlaneGeometry(200, 200, 32, 32);
+const groundMat = new THREE.MeshPhongMaterial({ color: 0x2a2a2a, shininess: 0 });
 const ground = new THREE.Mesh(groundGeo, groundMat);
-ground.rotation.x = -Math.PI / 2;
+ground.rotation.x = -Math.PI/2;
+ground.receiveShadow = true;
 scene.add(ground);
 
-// Objects
-const players = {};
+// === Game objects ===
+let players = {};
 let cats = [];
 let myId;
 let score = 0;
 
-// Mesh builders
-function makePlayer(color=0x00ffff) {
-  const geo = new THREE.BoxGeometry(1,2,1);
-  const mat = new THREE.MeshPhongMaterial({ color });
-  const m = new THREE.Mesh(geo, mat);
-  m.position.y = 1;
-  return m;
-}
-function makeCat() {
-  const geo = new THREE.SphereGeometry(0.6, 16, 16);
-  const mat = new THREE.MeshPhongMaterial({ color: 0xff9900 });
-  const m = new THREE.Mesh(geo, mat);
-  m.position.y = 0.6;
-  return m;
+// Smooth interpolation helper
+function lerp(a, b, t){ return a + (b - a) * t; }
+
+// === Mesh Builders ===
+function makePlayer(color=0x00ffff){
+  const geo = new THREE.BoxGeometry(1,2,1,4,4,4);
+  const mat = new THREE.MeshPhongMaterial({ color, shininess:50, flatShading:false });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.y = 1;
+  mesh.castShadow = true;
+  return mesh;
 }
 
-// Socket events
-socket.on('init', data => {
+function makeCat(){
+  const geo = new THREE.SphereGeometry(0.6,32,32);
+  const mat = new THREE.MeshPhongMaterial({ color:0xff9900, shininess:30 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.y = 0.6;
+  mesh.castShadow = true;
+  return mesh;
+}
+
+// === Socket Events ===
+socket.on('init', data=>{
   myId = data.id;
-  for (const id in data.players) {
-    const mesh = makePlayer(id === myId ? 0x00ffff : 0xffffff);
-    mesh.position.set(data.players[id].x, 1, data.players[id].z);
+  for(const id in data.players){
+    const mesh = makePlayer(id===myId?0x00ffff:0xffffff);
+    mesh.position.set(data.players[id].x,1,data.players[id].z);
     scene.add(mesh);
-    players[id] = { mesh, score: data.players[id].score };
+    players[id] = { mesh, targetX:data.players[id].x, targetZ:data.players[id].z, score:data.players[id].score };
   }
-  cats = [];
-  data.cats.forEach(cat => {
+  data.cats.forEach(c=>{
     const m = makeCat();
-    m.position.set(cat.x, 0.6, cat.z);
+    m.position.set(c.x,0.6,c.z);
     scene.add(m);
-    cats.push({ id: cat.id, mesh: m });
+    cats.push({ id:c.id, mesh:m });
   });
 });
 
-socket.on('newPlayer', data => {
+socket.on('newPlayer', data=>{
   const mesh = makePlayer(0xffffff);
-  mesh.position.set(data.player.x, 1, data.player.z);
+  mesh.position.set(data.player.x,1,data.player.z);
   scene.add(mesh);
-  players[data.id] = { mesh, score: data.player.score };
+  players[data.id] = { mesh, targetX:data.player.x, targetZ:data.player.z, score:data.player.score };
 });
 
-socket.on('update', data => {
-  // Update players
-  for (const id in players) {
-    if (!data.players[id]) {
+socket.on('update', data=>{
+  // Players
+  for(const id in players){
+    if(!data.players[id]){
       scene.remove(players[id].mesh);
       delete players[id];
-      continue;
     }
   }
-  for (const id in data.players) {
+  for(const id in data.players){
     const p = data.players[id];
-    if (!players[id]) {
+    if(!players[id]){
       const mesh = makePlayer(0xffffff);
       scene.add(mesh);
-      players[id] = { mesh, score: p.score };
+      players[id] = { mesh, targetX:p.x, targetZ:p.z, score:p.score };
     }
-    players[id].mesh.position.x = p.x;
-    players[id].mesh.position.z = p.z;
+    players[id].targetX = p.x;
+    players[id].targetZ = p.z;
+    players[id].score = p.score;
   }
-  // Update cats
-  cats.forEach(c => scene.remove(c.mesh));
-  cats = [];
-  data.cats.forEach(c => {
+  // Cats
+  cats.forEach(c=>scene.remove(c.mesh));
+  cats=[];
+  data.cats.forEach(c=>{
     const m = makeCat();
-    m.position.set(c.x, 0.6, c.z);
+    m.position.set(c.x,0.6,c.z);
     scene.add(m);
-    cats.push({ id: c.id, mesh: m });
+    cats.push({ id:c.id, mesh:m });
   });
 });
 
-socket.on('score', s => {
-  score = s;
-  document.getElementById('score').innerText = 'Score: ' + score;
+socket.on('score', s=>{
+  score=s;
+  document.getElementById('score').innerText='Score: '+score;
 });
 
-// Controls
-const keys = {};
-document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+// === Controls ===
+const keys={};
+document.addEventListener('keydown', e=>keys[e.key.toLowerCase()]=true);
+document.addEventListener('keyup', e=>keys[e.key.toLowerCase()]=false);
 
-function animate() {
+// === Animate ===
+function animate(){
   requestAnimationFrame(animate);
-
+  
+  // Move my player
   const me = players[myId];
-  if (me) {
-    const pos = me.mesh.position;
-    const speed = 0.25;
-    if (keys['w'] || keys['arrowup']) pos.z -= speed;
-    if (keys['s'] || keys['arrowdown']) pos.z += speed;
-    if (keys['a'] || keys['arrowleft']) pos.x -= speed;
-    if (keys['d'] || keys['arrowright']) pos.x += speed;
-    socket.emit('move', { x: pos.x, z: pos.z });
-
+  if(me){
+    const speed=0.25;
+    if(keys['w']||keys['arrowup']) me.targetZ -= speed;
+    if(keys['s']||keys['arrowdown']) me.targetZ += speed;
+    if(keys['a']||keys['arrowleft']) me.targetX -= speed;
+    if(keys['d']||keys['arrowright']) me.targetX += speed;
+    
+    // Smooth interpolation
+    me.mesh.position.x = lerp(me.mesh.position.x, me.targetX, 0.2);
+    me.mesh.position.z = lerp(me.mesh.position.z, me.targetZ, 0.2);
+    
+    socket.emit('move', { x: me.targetX, z: me.targetZ });
+    
     // Camera follow
-    camera.position.x = pos.x;
-    camera.position.z = pos.z + 8;
-    camera.position.y = 6;
-    camera.lookAt(pos.x, 1, pos.z);
+    camera.position.x = lerp(camera.position.x, me.mesh.position.x,0.1);
+    camera.position.z = lerp(camera.position.z, me.mesh.position.z+8,0.1);
+    camera.position.y = lerp(camera.position.y,6,0.1);
+    camera.lookAt(me.mesh.position.x,1,me.mesh.position.z);
   }
-
-  renderer.render(scene, camera);
+  
+  // Interpolate other players
+  for(const id in players){
+    if(id===myId) continue;
+    const p=players[id];
+    p.mesh.position.x = lerp(p.mesh.position.x,p.targetX,0.2);
+    p.mesh.position.z = lerp(p.mesh.position.z,p.targetZ,0.2);
+  }
+  
+  renderer.render(scene,camera);
 }
 animate();
 
-window.addEventListener('resize', ()=>{
-  camera.aspect = innerWidth/innerHeight;
+window.addEventListener('resize',()=>{
+  camera.aspect=window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(window.innerWidth,window.innerHeight);
 });
+
 </script>
 </body>
 </html>
