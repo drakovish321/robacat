@@ -2,76 +2,83 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Rob a Cat 3D - Smooth</title>
+<title>Rob a Cat 3D - First Person</title>
 <style>
 body { margin:0; overflow:hidden; background:#000; }
 #score { position:absolute; top:10px; left:10px; color:white; font-family:sans-serif; font-size:20px; }
+#instructions {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-family: sans-serif;
+  font-size: 24px;
+  text-align: center;
+  background: rgba(0,0,0,0.6);
+  padding: 20px;
+  border-radius: 10px;
+}
 </style>
 </head>
 <body>
 <div id="score">Score: 0</div>
+<div id="instructions">Click to Play<br><small>(WASD to move, move mouse to look)</small></div>
+
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.min.js"></script>
+
 <script>
-
-// === Socket ===
 const socket = io();
-
-// === Scene Setup ===
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 
-const camera = new THREE.PerspectiveCamera(65, window.innerWidth/window.innerHeight, 0.1, 1000);
-
+// Renderer setup
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
-// === Lights ===
+// Camera setup
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+// Lights
 const ambient = new THREE.AmbientLight(0xffffff, 0.6);
 scene.add(ambient);
-
 const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
 dirLight.position.set(20, 40, 20);
 dirLight.castShadow = true;
-dirLight.shadow.mapSize.width = 2048;
-dirLight.shadow.mapSize.height = 2048;
-dirLight.shadow.camera.near = 1;
-dirLight.shadow.camera.far = 100;
+dirLight.shadow.mapSize.set(2048, 2048);
 scene.add(dirLight);
 
-// === Ground ===
+// Ground
 const groundGeo = new THREE.PlaneGeometry(200, 200, 32, 32);
-const groundMat = new THREE.MeshPhongMaterial({ color: 0x2a2a2a, shininess: 0 });
+const groundMat = new THREE.MeshPhongMaterial({ color: 0x2a2a2a });
 const ground = new THREE.Mesh(groundGeo, groundMat);
-ground.rotation.x = -Math.PI/2;
+ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// === Game objects ===
+// Helpers
 let players = {};
 let cats = [];
 let myId;
 let score = 0;
 
-// Smooth interpolation helper
-function lerp(a, b, t){ return a + (b - a) * t; }
+function lerp(a,b,t){ return a + (b - a) * t; }
 
-// === Mesh Builders ===
 function makePlayer(color=0x00ffff){
   const geo = new THREE.BoxGeometry(1,2,1,4,4,4);
-  const mat = new THREE.MeshPhongMaterial({ color, shininess:50, flatShading:false });
+  const mat = new THREE.MeshPhongMaterial({ color, shininess:50 });
   const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.y = 1;
   mesh.castShadow = true;
+  mesh.position.y = 1;
   return mesh;
 }
 
 function makeCat(){
-  const geo = new THREE.SphereGeometry(0.6,32,32);
-  const mat = new THREE.MeshPhongMaterial({ color:0xff9900, shininess:30 });
+  const geo = new THREE.SphereGeometry(0.6, 32, 32);
+  const mat = new THREE.MeshPhongMaterial({ color: 0xff9900, shininess:30 });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.y = 0.6;
   mesh.castShadow = true;
@@ -85,7 +92,7 @@ socket.on('init', data=>{
     const mesh = makePlayer(id===myId?0x00ffff:0xffffff);
     mesh.position.set(data.players[id].x,1,data.players[id].z);
     scene.add(mesh);
-    players[id] = { mesh, targetX:data.players[id].x, targetZ:data.players[id].z, score:data.players[id].score };
+    players[id] = { mesh, x:data.players[id].x, z:data.players[id].z, score:data.players[id].score };
   }
   data.cats.forEach(c=>{
     const m = makeCat();
@@ -99,11 +106,10 @@ socket.on('newPlayer', data=>{
   const mesh = makePlayer(0xffffff);
   mesh.position.set(data.player.x,1,data.player.z);
   scene.add(mesh);
-  players[data.id] = { mesh, targetX:data.player.x, targetZ:data.player.z, score:data.player.score };
+  players[data.id] = { mesh, x:data.player.x, z:data.player.z, score:data.player.score };
 });
 
 socket.on('update', data=>{
-  // Players
   for(const id in players){
     if(!data.players[id]){
       scene.remove(players[id].mesh);
@@ -111,24 +117,23 @@ socket.on('update', data=>{
     }
   }
   for(const id in data.players){
-    const p = data.players[id];
+    const p=data.players[id];
     if(!players[id]){
-      const mesh = makePlayer(0xffffff);
+      const mesh=makePlayer(0xffffff);
       scene.add(mesh);
-      players[id] = { mesh, targetX:p.x, targetZ:p.z, score:p.score };
+      players[id]={mesh,x:p.x,z:p.z,score:p.score};
     }
-    players[id].targetX = p.x;
-    players[id].targetZ = p.z;
-    players[id].score = p.score;
+    players[id].x=p.x;
+    players[id].z=p.z;
+    players[id].score=p.score;
   }
-  // Cats
   cats.forEach(c=>scene.remove(c.mesh));
   cats=[];
   data.cats.forEach(c=>{
-    const m = makeCat();
+    const m=makeCat();
     m.position.set(c.x,0.6,c.z);
     scene.add(m);
-    cats.push({ id:c.id, mesh:m });
+    cats.push({id:c.id,mesh:m});
   });
 });
 
@@ -137,55 +142,88 @@ socket.on('score', s=>{
   document.getElementById('score').innerText='Score: '+score;
 });
 
-// === Controls ===
-const keys={};
+// === Pointer Lock Controls ===
+let yaw = 0;
+let pitch = 0;
+let velocity = new THREE.Vector3();
+let keys = {};
+let pointerLocked = false;
+
+document.body.addEventListener('click', ()=>{
+  if(!pointerLocked){
+    document.body.requestPointerLock();
+  }
+});
+
+document.addEventListener('pointerlockchange', ()=>{
+  pointerLocked = document.pointerLockElement === document.body;
+  document.getElementById('instructions').style.display = pointerLocked ? 'none' : 'block';
+});
+
+document.addEventListener('mousemove', e=>{
+  if(pointerLocked){
+    yaw -= e.movementX * 0.002;
+    pitch -= e.movementY * 0.002;
+    pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
+  }
+});
+
 document.addEventListener('keydown', e=>keys[e.key.toLowerCase()]=true);
 document.addEventListener('keyup', e=>keys[e.key.toLowerCase()]=false);
+
+// === Movement Logic ===
+function movePlayer(){
+  const moveSpeed = 0.2;
+  const direction = new THREE.Vector3();
+  if(keys['w']) direction.z -= 1;
+  if(keys['s']) direction.z += 1;
+  if(keys['a']) direction.x -= 1;
+  if(keys['d']) direction.x += 1;
+
+  if(direction.length() > 0) direction.normalize();
+
+  const sinY = Math.sin(yaw);
+  const cosY = Math.cos(yaw);
+  const dx = direction.x * cosY - direction.z * sinY;
+  const dz = direction.x * sinY + direction.z * cosY;
+
+  velocity.x = dx * moveSpeed;
+  velocity.z = dz * moveSpeed;
+
+  const me = players[myId];
+  if(me){
+    me.x += velocity.x;
+    me.z += velocity.z;
+    me.mesh.position.x = me.x;
+    me.mesh.position.z = me.z;
+    camera.position.set(me.x, me.mesh.position.y + 1.6, me.z);
+    camera.rotation.order = 'YXZ';
+    camera.rotation.y = yaw;
+    camera.rotation.x = pitch;
+    socket.emit('move', { x: me.x, z: me.z });
+  }
+}
 
 // === Animate ===
 function animate(){
   requestAnimationFrame(animate);
-  
-  // Move my player
-  const me = players[myId];
-  if(me){
-    const speed=0.25;
-    if(keys['w']||keys['arrowup']) me.targetZ -= speed;
-    if(keys['s']||keys['arrowdown']) me.targetZ += speed;
-    if(keys['a']||keys['arrowleft']) me.targetX -= speed;
-    if(keys['d']||keys['arrowright']) me.targetX += speed;
-    
-    // Smooth interpolation
-    me.mesh.position.x = lerp(me.mesh.position.x, me.targetX, 0.2);
-    me.mesh.position.z = lerp(me.mesh.position.z, me.targetZ, 0.2);
-    
-    socket.emit('move', { x: me.targetX, z: me.targetZ });
-    
-    // Camera follow
-    camera.position.x = lerp(camera.position.x, me.mesh.position.x,0.1);
-    camera.position.z = lerp(camera.position.z, me.mesh.position.z+8,0.1);
-    camera.position.y = lerp(camera.position.y,6,0.1);
-    camera.lookAt(me.mesh.position.x,1,me.mesh.position.z);
-  }
-  
-  // Interpolate other players
+  movePlayer();
   for(const id in players){
-    if(id===myId) continue;
-    const p=players[id];
-    p.mesh.position.x = lerp(p.mesh.position.x,p.targetX,0.2);
-    p.mesh.position.z = lerp(p.mesh.position.z,p.targetZ,0.2);
+    if(id!==myId){
+      const p=players[id];
+      p.mesh.position.x = lerp(p.mesh.position.x,p.x,0.2);
+      p.mesh.position.z = lerp(p.mesh.position.z,p.z,0.2);
+    }
   }
-  
-  renderer.render(scene,camera);
+  renderer.render(scene, camera);
 }
 animate();
 
-window.addEventListener('resize',()=>{
-  camera.aspect=window.innerWidth/window.innerHeight;
+window.addEventListener('resize', ()=>{
+  camera.aspect = window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth,window.innerHeight);
+  renderer.setSize(window.innerWidth, window.innerHeight);
 });
-
 </script>
 </body>
 </html>
