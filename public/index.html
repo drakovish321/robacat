@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Rob a Cat</title>
+<style>
+body { margin:0; overflow:hidden; background:#222; color:#fff; font-family:sans-serif; }
+canvas { background:#333; display:block; margin:0 auto; }
+</style>
+</head>
+<body>
+<canvas id="game" width="600" height="600"></canvas>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+let players = {};
+let cats = [];
+let myId;
+let score = 0;
+
+socket.on('init', data => {
+    players = data.players;
+    cats = data.cats;
+    myId = socket.id;
+});
+
+socket.on('newPlayer', data => {
+    players[data.id] = data.player;
+});
+
+socket.on('update', data => {
+    players = data.players;
+    cats = data.cats;
+});
+
+socket.on('score', s => { score = s; });
+
+// Movement
+const keys = {};
+document.addEventListener('keydown', e => keys[e.key] = true);
+document.addEventListener('keyup', e => keys[e.key] = false);
+
+function gameLoop() {
+    const speed = 2;
+    if (players[socket.id]) {
+        if (keys['ArrowUp']) players[socket.id].y -= speed;
+        if (keys['ArrowDown']) players[socket.id].y += speed;
+        if (keys['ArrowLeft']) players[socket.id].x -= speed;
+        if (keys['ArrowRight']) players[socket.id].x += speed;
+        socket.emit('move', { x: players[socket.id].x, y: players[socket.id].y });
+    }
+
+    // Draw
+    ctx.fillStyle = '#333';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // Cats
+    cats.forEach(cat => {
+        ctx.fillStyle = 'orange';
+        ctx.beginPath();
+        ctx.arc(cat.x, cat.y, 10, 0, Math.PI*2);
+        ctx.fill();
+    });
+
+    // Players
+    for (let id in players) {
+        ctx.fillStyle = id === socket.id ? 'cyan' : 'white';
+        ctx.fillRect(players[id].x-10, players[id].y-10, 20, 20);
+    }
+
+    // Score
+    ctx.fillStyle = 'white';
+    ctx.fillText('Score: ' + score, 10, 20);
+
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+</body>
+</html>
