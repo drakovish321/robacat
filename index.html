@@ -2,140 +2,548 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Rob a Cat 3D</title>
+<title>Rob a Cat 2D</title>
 <style>
-body { margin:0; overflow:hidden; background:#222; }
-#score { position:absolute; top:10px; left:10px; color:white; font-family:sans-serif; font-size:20px; }
+body {
+    margin: 0;
+    overflow: hidden;
+    background: linear-gradient(to bottom, #1a2980, #26d0ce);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+#gameContainer {
+    position: relative;
+    width: 800px;
+    height: 600px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+#gameCanvas {
+    background: #87CEEB;
+    display: block;
+}
+
+#ui {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+#score {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px 15px;
+    border-radius: 10px;
+}
+
+#playerName {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px 15px;
+    border-radius: 10px;
+}
+
+#leaderboard {
+    position: absolute;
+    top: 70px;
+    right: 20px;
+    color: white;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 15px;
+    border-radius: 10px;
+    min-width: 150px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.leaderboard-entry {
+    margin: 8px 0;
+    padding: 5px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 14px;
+}
+
+.leaderboard-entry:last-child {
+    border-bottom: none;
+}
+
+#instructions {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    text-align: center;
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 0 20px rgba(0, 100, 255, 0.5);
+    max-width: 500px;
+    width: 80%;
+}
+
+#instructions h2 {
+    margin-top: 0;
+    color: #4fc3f7;
+    text-shadow: 0 0 10px rgba(79, 195, 247, 0.7);
+}
+
+#instructions p {
+    margin: 10px 0;
+    font-size: 16px;
+}
+
+#startButton {
+    background: linear-gradient(to bottom, #2196F3, #0d47a1);
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    font-size: 18px;
+    border-radius: 30px;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: all 0.3s;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    pointer-events: auto;
+}
+
+#startButton:hover {
+    background: linear-gradient(to bottom, #42A5F5, #1565C0);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+#controls {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    color: white;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px 15px;
+    border-radius: 10px;
+    font-size: 14px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+#gameOver {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    text-align: center;
+    z-index: 20;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 0 20px rgba(0, 100, 255, 0.5);
+    display: none;
+}
+
+#gameOver h2 {
+    margin-top: 0;
+    color: #ff5252;
+}
+
+#restartButton {
+    background: linear-gradient(to bottom, #ff5252, #b71c1c);
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    font-size: 18px;
+    border-radius: 30px;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: all 0.3s;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+#restartButton:hover {
+    background: linear-gradient(to bottom, #ff7979, #d32f2f);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Scrollbar styling */
+#leaderboard::-webkit-scrollbar {
+    width: 8px;
+}
+
+#leaderboard::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+#leaderboard::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+}
+
+#leaderboard::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
 </style>
 </head>
 <body>
-<div id="score">Score: 0</div>
-<script src="/socket.io/socket.io.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.min.js"></script>
+<div id="gameContainer">
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    
+    <div id="ui">
+        <div id="score">Score: 0</div>
+        <div id="playerName">Player: <span id="playerNameValue">Unknown</span></div>
+        <div id="leaderboard">
+            <div><b>Leaderboard:</b></div>
+        </div>
+        <div id="controls">
+            <div>WASD - Move | ESC - Restart</div>
+        </div>
+    </div>
+    
+    <div id="instructions">
+        <h2>Rob a Cat 2D</h2>
+        <p>Collect as many cats as you can! Avoid other players.</p>
+        <p>Use WASD to move around the 2D world</p>
+        <button id="startButton">Start Game</button>
+    </div>
+    
+    <div id="gameOver">
+        <h2>Game Over!</h2>
+        <p>Your final score: <span id="finalScore">0</span></p>
+        <button id="restartButton">Play Again</button>
+    </div>
+</div>
+
 <script>
-const socket = io();
+// Game variables
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreElement = document.getElementById('score');
+const playerNameElement = document.getElementById('playerNameValue');
+const leaderboardElement = document.getElementById('leaderboard');
+const instructionsElement = document.getElementById('instructions');
+const gameOverElement = document.getElementById('gameOver');
+const finalScoreElement = document.getElementById('finalScore');
+const startButton = document.getElementById('startButton');
+const restartButton = document.getElementById('restartButton');
 
-// Scene setup
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
-
-// Light
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(10,20,10);
-scene.add(light);
-scene.add(new THREE.AmbientLight(0x555555));
-
-// Ground
-const groundGeo = new THREE.PlaneGeometry(100,100);
-const groundMat = new THREE.MeshPhongMaterial({color:0x333333});
-const ground = new THREE.Mesh(groundGeo, groundMat);
-ground.rotation.x = -Math.PI/2;
-scene.add(ground);
-
-// Game objects
+// Game state
+let gameRunning = false;
+let myScore = 0;
+let playerName = "Player";
 let players = {};
 let cats = [];
-let myId;
-let myScore = 0;
+let myId = null;
+let keys = {};
 
-// Shapes
-function createPlayerMesh(color=0x00ffff){
-    const geo = new THREE.BoxGeometry(1,2,1);
-    const mat = new THREE.MeshPhongMaterial({color});
-    return new THREE.Mesh(geo, mat);
-}
-function createCatMesh(){
-    const geo = new THREE.SphereGeometry(0.5,16,16);
-    const mat = new THREE.MeshPhongMaterial({color:0xff9900});
-    return new THREE.Mesh(geo, mat);
-}
+// Player properties
+const playerSize = 30;
+let playerX = 400;
+let playerY = 300;
+let playerSpeed = 4;
 
-// Socket events
-socket.on('init', data => {
-    players = {};
-    myId = data.id;
-    for(let id in data.players){
-        const mesh = createPlayerMesh(id===myId ? 0x00ffff:0xffffff);
-        mesh.position.set(data.players[id].x,1,data.players[id].z);
-        scene.add(mesh);
-        players[id] = { mesh, score: data.players[id].score };
-    }
+// Cat properties
+const catSize = 20;
 
+// Initialize game
+function initGame() {
+    gameRunning = true;
+    myScore = 0;
+    scoreElement.textContent = 'Score: 0';
+    playerX = 400;
+    playerY = 300;
+    
+    // Create initial cats
     cats = [];
-    data.cats.forEach(cat=>{
-        const mesh = createCatMesh();
-        mesh.position.set(cat.x,0.5,cat.z);
-        scene.add(mesh);
-        cats.push({ id: cat.id, mesh });
+    for (let i = 0; i < 15; i++) {
+        cats.push({
+            id: i,
+            x: Math.random() * (canvas.width - catSize) + catSize/2,
+            y: Math.random() * (canvas.height - catSize) + catSize/2
+        });
+    }
+    
+    // Create initial players
+    players = {
+        [myId]: {
+            x: playerX,
+            y: playerY,
+            score: myScore,
+            name: playerName
+        }
+    };
+    
+    // Hide UI elements
+    instructionsElement.style.display = 'none';
+    gameOverElement.style.display = 'none';
+    
+    // Start game loop
+    requestAnimationFrame(gameLoop);
+}
+
+// Draw game elements
+function draw() {
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw background grid
+    drawGrid();
+    
+    // Draw cats
+    cats.forEach(cat => {
+        drawCat(cat.x, cat.y);
     });
+    
+    // Draw players
+    for (const id in players) {
+        const player = players[id];
+        drawPlayer(player.x, player.y, id === myId, player.name);
+    }
+    
+    // Draw player name tag
+    if (myId && players[myId]) {
+        drawPlayerTag(players[myId].x, players[myId].y);
+    }
+}
 
-    camera.position.set(players[myId].mesh.position.x,5,players[myId].mesh.position.z+10);
-});
+// Draw background grid
+function drawGrid() {
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 1;
+    
+    // Vertical lines
+    for (let x = 0; x < canvas.width; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+    }
+    
+    // Horizontal lines
+    for (let y = 0; y < canvas.height; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+    }
+}
 
-socket.on('newPlayer', data=>{
-    const mesh = createPlayerMesh(0xffffff);
-    mesh.position.set(data.player.x,1,data.player.z);
-    scene.add(mesh);
-    players[data.id] = { mesh, score: data.player.score };
-});
+// Draw a cat
+function drawCat(x, y) {
+    // Cat body
+    ctx.fillStyle = '#FF9900';
+    ctx.beginPath();
+    ctx.arc(x, y, catSize/2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Cat ears
+    ctx.fillStyle = '#FF9900';
+    ctx.beginPath();
+    ctx.moveTo(x - catSize/3, y - catSize/3);
+    ctx.lineTo(x, y - catSize/2);
+    ctx.lineTo(x + catSize/3, y - catSize/3);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Cat eyes
+    ctx.fillStyle = 'white';
+    ctx.beginPath();
+    ctx.arc(x - catSize/5, y - catSize/6, catSize/8, 0, Math.PI * 2);
+    ctx.arc(x + catSize/5, y - catSize/6, catSize/8, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.fillStyle = 'black';
+    ctx.beginPath();
+    ctx.arc(x - catSize/5, y - catSize/6, catSize/12, 0, Math.PI * 2);
+    ctx.arc(x + catSize/5, y - catSize/6, catSize/12, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Cat nose
+    ctx.fillStyle = '#FF6600';
+    ctx.beginPath();
+    ctx.arc(x, y + catSize/10, catSize/10, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Cat tail
+    ctx.strokeStyle = '#FF9900';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x - catSize/2, y);
+    ctx.lineTo(x - catSize, y + catSize/2);
+    ctx.stroke();
+}
 
-socket.on('update', data=>{
-    // Update players
-    for(let id in data.players){
-        if(players[id]){
-            players[id].mesh.position.x = data.players[id].x;
-            players[id].mesh.position.z = data.players[id].z;
-            players[id].score = data.players[id].score;
+// Draw a player
+function drawPlayer(x, y, isMe, name) {
+    // Player body
+    if (isMe) {
+        ctx.fillStyle = '#00FFFF';
+    } else {
+        ctx.fillStyle = '#FFFFFF';
+    }
+    
+    ctx.beginPath();
+    ctx.arc(x, y, playerSize/2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Player details
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath();
+    ctx.arc(x, y, playerSize/3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Player name tag
+    ctx.fillStyle = 'white';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(name || 'Player', x, y - playerSize/2 - 5);
+}
+
+// Draw player name tag above player
+function drawPlayerTag(x, y) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(x - 30, y - 45, 60, 25);
+    
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(playerName, x, y - 30);
+}
+
+// Update game state
+function update() {
+    if (!gameRunning) return;
+    
+    // Move player based on keys pressed
+    if (keys['w'] || keys['ArrowUp']) {
+        playerY = Math.max(playerSize/2, playerY - playerSpeed);
+    }
+    if (keys['s'] || keys['ArrowDown']) {
+        playerY = Math.min(canvas.height - playerSize/2, playerY + playerSpeed);
+    }
+    if (keys['a'] || keys['ArrowLeft']) {
+        playerX = Math.max(playerSize/2, playerX - playerSpeed);
+    }
+    if (keys['d'] || keys['ArrowRight']) {
+        playerX = Math.min(canvas.width - playerSize/2, playerX + playerSpeed);
+    }
+    
+    // Update player position in players object
+    if (myId) {
+        players[myId].x = playerX;
+        players[myId].y = playerY;
+    }
+    
+    // Check for cat collection
+    checkCatCollection();
+    
+    // Update leaderboard
+    updateLeaderboard();
+}
+
+// Check if player collected any cats
+function checkCatCollection() {
+    for (let i = cats.length - 1; i >= 0; i--) {
+        const cat = cats[i];
+        const dx = playerX - cat.x;
+        const dy = playerY - cat.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < (playerSize/2 + catSize/2)) {
+            // Collect cat
+            cats.splice(i, 1);
+            myScore++;
+            scoreElement.textContent = 'Score: ' + myScore;
+            
+            // Add new cat
+            cats.push({
+                id: Date.now(),
+                x: Math.random() * (canvas.width - catSize) + catSize/2,
+                y: Math.random() * (canvas.height - catSize) + catSize/2
+            });
         }
     }
-
-    // Update cats
-    cats.forEach(cat=>scene.remove(cat.mesh));
-    cats = [];
-    data.cats.forEach(cat=>{
-        const mesh = createCatMesh();
-        mesh.position.set(cat.x,0.5,cat.z);
-        scene.add(mesh);
-        cats.push({ id: cat.id, mesh });
-    });
-});
-
-socket.on('score', s=>{
-    myScore = s;
-    document.getElementById('score').innerText = 'Score: '+myScore;
-});
-
-// Movement
-const keys = {};
-document.addEventListener('keydown', e=>keys[e.key.toLowerCase()]=true);
-document.addEventListener('keyup', e=>keys[e.key.toLowerCase()]=false);
-
-function animate(){
-    requestAnimationFrame(animate);
-
-    if(players[myId]){
-        const speed = 0.2;
-        let pos = players[myId].mesh.position;
-        if(keys['w']||keys['arrowup']) pos.z -= speed;
-        if(keys['s']||keys['arrowdown']) pos.z += speed;
-        if(keys['a']||keys['arrowleft']) pos.x -= speed;
-        if(keys['d']||keys['arrowright']) pos.x += speed;
-
-        socket.emit('move',{ x: pos.x, z: pos.z });
-
-        // Camera follow
-        camera.position.x = pos.x;
-        camera.position.z = pos.z+10;
-        camera.position.y = 5;
-        camera.lookAt(pos);
-    }
-
-    renderer.render(scene,camera);
 }
-animate();
+
+// Update leaderboard display
+function updateLeaderboard() {
+    leaderboardElement.innerHTML = '<div><b>Leaderboard:</b></div>';
+    
+    // Create array of players for sorting
+    const playerList = Object.entries(players)
+        .map(([id, player]) => ({ id, ...player }))
+        .sort((a, b) => b.score - a.score);
+    
+    // Display top 10 players
+    playerList.slice(0, 10).forEach(player => {
+        const entry = document.createElement('div');
+        entry.className = 'leaderboard-entry';
+        entry.textContent = `${player.name || `Player ${player.id.substring(0, 5)}`}: ${player.score}`;
+        leaderboardElement.appendChild(entry);
+    });
+}
+
+// Game loop
+function gameLoop() {
+    if (!gameRunning) return;
+    
+    update();
+    draw();
+    
+    requestAnimationFrame(gameLoop);
+}
+
+// Event listeners
+startButton.addEventListener('click', () => {
+    // Generate a simple ID for this player
+    myId = 'player_' + Math.floor(Math.random() * 10000);
+    playerName = prompt('Enter your name:', 'Player') || 'Player';
+    playerNameElement.textContent = playerName;
+    initGame();
+});
+
+restartButton.addEventListener('click', () => {
+    initGame();
+});
+
+document.addEventListener('keydown', (e) => {
+    keys[e.key] = true;
+    
+    // Escape key to restart
+    if (e.key === 'Escape' && gameRunning) {
+        gameOverElement.style.display = 'block';
+        finalScoreElement.textContent = myScore;
+        gameRunning = false;
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    keys[e.key] = false;
+});
+
+// Initial draw
+draw();
 </script>
 </body>
 </html>
