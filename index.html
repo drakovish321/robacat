@@ -235,6 +235,7 @@ body {
     </div>
 </div>
 
+<script src="/socket.io/socket.io.js"></script>
 <script>
 // Game variables
 const canvas = document.getElementById('gameCanvas');
@@ -256,6 +257,7 @@ let players = {};
 let cats = [];
 let myId = null;
 let keys = {};
+let socket;
 
 // Player properties
 const playerSize = 30;
@@ -266,6 +268,9 @@ let playerSpeed = 4;
 // Cat properties
 const catSize = 20;
 
+// Connect to the server
+socket = io();
+
 // Initialize game
 function initGame() {
     gameRunning = true;
@@ -273,26 +278,6 @@ function initGame() {
     scoreElement.textContent = 'Score: 0';
     playerX = 400;
     playerY = 300;
-    
-    // Create initial cats
-    cats = [];
-    for (let i = 0; i < 15; i++) {
-        cats.push({
-            id: i,
-            x: Math.random() * (canvas.width - catSize) + catSize/2,
-            y: Math.random() * (canvas.height - catSize) + catSize/2
-        });
-    }
-    
-    // Create initial players
-    players = {
-        [myId]: {
-            x: playerX,
-            y: playerY,
-            score: myScore,
-            name: playerName
-        }
-    };
     
     // Hide UI elements
     instructionsElement.style.display = 'none';
@@ -449,42 +434,46 @@ function update() {
         playerX = Math.min(canvas.width - playerSize/2, playerX + playerSpeed);
     }
     
-    // Update player position in players object
+    // Send movement to server
     if (myId) {
-        players[myId].x = playerX;
-        players[myId].y = playerY;
+        socket.emit('move', { x: playerX, z: playerY });
     }
-    
-    // Check for cat collection
-    checkCatCollection();
-    
-    // Update leaderboard
-    updateLeaderboard();
 }
 
-// Check if player collected any cats
-function checkCatCollection() {
-    for (let i = cats.length - 1; i >= 0; i--) {
-        const cat = cats[i];
-        const dx = playerX - cat.x;
-        const dy = playerY - cat.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance < (playerSize/2 + catSize/2)) {
-            // Collect cat
-            cats.splice(i, 1);
-            myScore++;
-            scoreElement.textContent = 'Score: ' + myScore;
-            
-            // Add new cat
-            cats.push({
-                id: Date.now(),
-                x: Math.random() * (canvas.width - catSize) + catSize/2,
-                y: Math.random() * (canvas.height - catSize) + catSize/2
-            });
-        }
-    }
+// Game loop
+function gameLoop() {
+    if (!gameRunning) return;
+    
+    update();
+    draw();
+    
+    requestAnimationFrame(gameLoop);
 }
+
+// Socket event handlers
+socket.on('init', (data) => {
+    players = data.players;
+    cats = data.cats;
+    myId = data.id;
+    playerName = data.players[myId].name || "Player";
+    playerNameElement.textContent = playerName;
+    initGame();
+});
+
+socket.on('newPlayer', (data) => {
+    players[data.id] = data.player;
+});
+
+socket.on('update', (data) => {
+    players = data.players;
+    cats = data.cats;
+    updateLeaderboard();
+});
+
+socket.on('score', (score) => {
+    myScore = score;
+    scoreElement.textContent = 'Score: ' + myScore;
+});
 
 // Update leaderboard display
 function updateLeaderboard() {
@@ -504,27 +493,25 @@ function updateLeaderboard() {
     });
 }
 
-// Game loop
-function gameLoop() {
-    if (!gameRunning) return;
-    
-    update();
-    draw();
-    
-    requestAnimationFrame(gameLoop);
-}
-
 // Event listeners
 startButton.addEventListener('click', () => {
-    // Generate a simple ID for this player
-    myId = 'player_' + Math.floor(Math.random() * 10000);
+    // Get player name
     playerName = prompt('Enter your name:', 'Player') || 'Player';
     playerNameElement.textContent = playerName;
-    initGame();
+    
+    // Connect to server and initialize game
+    socket.emit('join', { name: playerName });
 });
 
 restartButton.addEventListener('click', () => {
-    initGame();
+    // Reset game state
+    myScore = 0;
+    scoreElement.textContent = 'Score: 0';
+    playerX = 400;
+    playerY = 300;
+    
+    // Reconnect to server
+    socket.emit('join', { name: playerName });
 });
 
 document.addEventListener('keydown', (e) => {
