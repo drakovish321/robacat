@@ -1,7 +1,7 @@
 {
-  "name": "rob-a-cat",
+  "name": "rob-a-cat-3d",
   "version": "1.0.0",
-  "description": "Multiplayer Rob a Cat game",
+  "description": "3D Multiplayer Rob a Cat game",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
