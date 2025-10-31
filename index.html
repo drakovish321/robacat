@@ -204,6 +204,35 @@ body {
 #leaderboard::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.5);
 }
+
+/* Power-up indicators */
+#powerUps {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+}
+
+.power-up-indicator {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: white;
+    text-shadow: 0 0 3px black;
+    opacity: 0.7;
+}
+
+.power-up-indicator.active {
+    opacity: 1;
+    box-shadow: 0 0 10px white;
+}
 </style>
 </head>
 <body>
@@ -213,6 +242,7 @@ body {
     <div id="ui">
         <div id="score">Score: 0</div>
         <div id="playerName">Player: <span id="playerNameValue">Unknown</span></div>
+        <div id="powerUps"></div>
         <div id="leaderboard">
             <div><b>Leaderboard:</b></div>
         </div>
@@ -225,6 +255,7 @@ body {
         <h2>Rob a Cat 2D</h2>
         <p>Collect as many cats as you can! Avoid other players.</p>
         <p>Use WASD to move around the 2D world</p>
+        <p>Collect power-ups for special abilities!</p>
         <button id="startButton">Start Game</button>
     </div>
     
@@ -248,6 +279,7 @@ const gameOverElement = document.getElementById('gameOver');
 const finalScoreElement = document.getElementById('finalScore');
 const startButton = document.getElementById('startButton');
 const restartButton = document.getElementById('restartButton');
+const powerUpsElement = document.getElementById('powerUps');
 
 // Game state
 let gameRunning = false;
@@ -255,18 +287,33 @@ let myScore = 0;
 let playerName = "Player";
 let players = {};
 let cats = [];
+let powerUps = [];
+let enemies = [];
 let myId = null;
 let keys = {};
 let socket;
+let particles = [];
+let powerUpTimers = {
+    speed: 0,
+    invincible: 0
+};
 
 // Player properties
 const playerSize = 30;
 let playerX = 400;
 let playerY = 300;
 let playerSpeed = 4;
+let isInvincible = false;
 
 // Cat properties
 const catSize = 20;
+
+// Enemy properties
+const enemySize = 25;
+const enemySpeed = 1.5;
+
+// Power-up properties
+const powerUpSize = 15;
 
 // Connect to the server
 socket = io();
@@ -278,6 +325,9 @@ function initGame() {
     scoreElement.textContent = 'Score: 0';
     playerX = 400;
     playerY = 300;
+    isInvincible = false;
+    powerUpTimers = { speed: 0, invincible: 0 };
+    particles = [];
     
     // Hide UI elements
     instructionsElement.style.display = 'none';
@@ -295,6 +345,19 @@ function draw() {
     // Draw background grid
     drawGrid();
     
+    // Draw particles
+    drawParticles();
+    
+    // Draw power-ups
+    powerUps.forEach(powerUp => {
+        drawPowerUp(powerUp.x, powerUp.y, powerUp.type);
+    });
+    
+    // Draw enemies
+    enemies.forEach(enemy => {
+        drawEnemy(enemy.x, enemy.y);
+    });
+    
     // Draw cats
     cats.forEach(cat => {
         drawCat(cat.x, cat.y);
@@ -303,13 +366,16 @@ function draw() {
     // Draw players
     for (const id in players) {
         const player = players[id];
-        drawPlayer(player.x, player.y, id === myId, player.name);
+        drawPlayer(player.x, player.y, id === myId, player.name, id === myId ? isInvincible : false);
     }
     
     // Draw player name tag
     if (myId && players[myId]) {
         drawPlayerTag(players[myId].x, players[myId].y);
     }
+    
+    // Draw power-up indicators
+    drawPowerUpIndicators();
 }
 
 // Draw background grid
@@ -380,10 +446,10 @@ function drawCat(x, y) {
 }
 
 // Draw a player
-function drawPlayer(x, y, isMe, name) {
+function drawPlayer(x, y, isMe, name, isInvincible) {
     // Player body
     if (isMe) {
-        ctx.fillStyle = '#00FFFF';
+        ctx.fillStyle = isInvincible ? '#00FFFF' : '#00FFFF';
     } else {
         ctx.fillStyle = '#FFFFFF';
     }
@@ -403,6 +469,15 @@ function drawPlayer(x, y, isMe, name) {
     ctx.font = '12px Arial';
     ctx.textAlign = 'center';
     ctx.fillText(name || 'Player', x, y - playerSize/2 - 5);
+    
+    // Draw invincibility effect
+    if (isInvincible) {
+        ctx.strokeStyle = '#00FFFF';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x, y, playerSize/2 + 5, 0, Math.PI * 2);
+        ctx.stroke();
+    }
 }
 
 // Draw player name tag above player
@@ -416,28 +491,170 @@ function drawPlayerTag(x, y) {
     ctx.fillText(playerName, x, y - 30);
 }
 
+// Draw an enemy
+function drawEnemy(x, y) {
+    // Enemy body
+    ctx.fillStyle = '#FF5252';
+    ctx.beginPath();
+    ctx.arc(x, y, enemySize/2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Enemy eyes
+    ctx.fillStyle = 'white';
+    ctx.beginPath();
+    ctx.arc(x - enemySize/5, y - enemySize/6, enemySize/8, 0, Math.PI * 2);
+    ctx.arc(x + enemySize/5, y - enemySize/6, enemySize/8, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.fillStyle = 'black';
+    ctx.beginPath();
+    ctx.arc(x - enemySize/5, y - enemySize/6, enemySize/12, 0, Math.PI * 2);
+    ctx.arc(x + enemySize/5, y - enemySize/6, enemySize/12, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Enemy mouth
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y + enemySize/10, enemySize/5, 0, Math.PI);
+    ctx.stroke();
+}
+
+// Draw a power-up
+function drawPowerUp(x, y, type) {
+    let color, symbol;
+    
+    switch(type) {
+        case 'speed':
+            color = '#4CAF50';
+            symbol = 'S';
+            break;
+        case 'invincible':
+            color = '#9C27B0';
+            symbol = 'I';
+            break;
+        default:
+            color = '#FF9800';
+            symbol = '?';
+    }
+    
+    // Power-up circle
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, powerUpSize/2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Power-up symbol
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(symbol, x, y + 5);
+}
+
+// Draw particles
+function drawParticles() {
+    for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.alpha;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+}
+
+// Draw power-up indicators
+function drawPowerUpIndicators() {
+    powerUpsElement.innerHTML = '';
+    
+    const indicators = [
+        { type: 'speed', label: 'S', active: powerUpTimers.speed > 0 },
+        { type: 'invincible', label: 'I', active: powerUpTimers.invincible > 0 }
+    ];
+    
+    indicators.forEach(indicator => {
+        const div = document.createElement('div');
+        div.className = `power-up-indicator ${indicator.active ? 'active' : ''}`;
+        div.textContent = indicator.label;
+        div.title = indicator.type.charAt(0).toUpperCase() + indicator.type.slice(1);
+        powerUpsElement.appendChild(div);
+    });
+}
+
+// Create particles
+function createParticles(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+        particles.push({
+            x: x,
+            y: y,
+            size: Math.random() * 3 + 1,
+            color: color,
+            alpha: 1,
+            velocity: {
+                x: (Math.random() - 0.5) * 4,
+                y: (Math.random() - 0.5) * 4
+            }
+        });
+    }
+}
+
+// Update particles
+function updateParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.velocity.x;
+        p.y += p.velocity.y;
+        p.alpha -= 0.02;
+        
+        if (p.alpha <= 0) {
+            particles.splice(i, 1);
+        }
+    }
+}
+
 // Update game state
 function update() {
     if (!gameRunning) return;
     
+    // Update power-up timers
+    if (powerUpTimers.speed > 0) {
+        powerUpTimers.speed--;
+    }
+    
+    if (powerUpTimers.invincible > 0) {
+        powerUpTimers.invincible--;
+        if (powerUpTimers.invincible === 0) {
+            isInvincible = false;
+        }
+    }
+    
     // Move player based on keys pressed
+    let speed = playerSpeed;
+    if (powerUpTimers.speed > 0) {
+        speed *= 1.5;
+    }
+    
     if (keys['w'] || keys['ArrowUp']) {
-        playerY = Math.max(playerSize/2, playerY - playerSpeed);
+        playerY = Math.max(playerSize/2, playerY - speed);
     }
     if (keys['s'] || keys['ArrowDown']) {
-        playerY = Math.min(canvas.height - playerSize/2, playerY + playerSpeed);
+        playerY = Math.min(canvas.height - playerSize/2, playerY + speed);
     }
     if (keys['a'] || keys['ArrowLeft']) {
-        playerX = Math.max(playerSize/2, playerX - playerSpeed);
+        playerX = Math.max(playerSize/2, playerX - speed);
     }
     if (keys['d'] || keys['ArrowRight']) {
-        playerX = Math.min(canvas.width - playerSize/2, playerX + playerSpeed);
+        playerX = Math.min(canvas.width - playerSize/2, playerX + speed);
     }
     
     // Send movement to server
     if (myId) {
         socket.emit('move', { x: playerX, z: playerY });
     }
+    
+    // Update particles
+    updateParticles();
 }
 
 // Game loop
@@ -454,6 +671,8 @@ function gameLoop() {
 socket.on('init', (data) => {
     players = data.players;
     cats = data.cats;
+    powerUps = data.powerUps || [];
+    enemies = data.enemies || [];
     myId = data.id;
     playerName = data.players[myId].name || "Player";
     playerNameElement.textContent = playerName;
@@ -467,12 +686,39 @@ socket.on('newPlayer', (data) => {
 socket.on('update', (data) => {
     players = data.players;
     cats = data.cats;
+    powerUps = data.powerUps || [];
+    enemies = data.enemies || [];
     updateLeaderboard();
 });
 
 socket.on('score', (score) => {
     myScore = score;
     scoreElement.textContent = 'Score: ' + myScore;
+});
+
+socket.on('powerUpCollected', (type) => {
+    // Apply power-up effect
+    switch(type) {
+        case 'speed':
+            powerUpTimers.speed = 300; // 5 seconds at 60fps
+            break;
+        case 'invincible':
+            powerUpTimers.invincible = 300;
+            isInvincible = true;
+            break;
+    }
+    
+    // Create visual effect
+    createParticles(playerX, playerY, '#4CAF50', 20);
+});
+
+socket.on('enemyCollision', () => {
+    if (isInvincible) return;
+    
+    // Game over
+    gameOverElement.style.display = 'block';
+    finalScoreElement.textContent = myScore;
+    gameRunning = false;
 });
 
 // Update leaderboard display
@@ -509,6 +755,9 @@ restartButton.addEventListener('click', () => {
     scoreElement.textContent = 'Score: 0';
     playerX = 400;
     playerY = 300;
+    isInvincible = false;
+    powerUpTimers = { speed: 0, invincible: 0 };
+    particles = [];
     
     // Reconnect to server
     socket.emit('join', { name: playerName });
