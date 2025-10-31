@@ -18,40 +18,40 @@ app.get('/', (req, res) => {
 let players = {};
 let cats = [];
 
-// Spawn some random cats
-for (let i = 0; i < 5; i++) {
-    cats.push({ id: i, x: Math.random() * 500, y: Math.random() * 500 });
+// Spawn 10 random cats on a flat plane
+for (let i = 0; i < 10; i++) {
+    cats.push({ id: i, x: Math.random() * 50 - 25, z: Math.random() * 50 - 25 });
 }
 
 io.on('connection', (socket) => {
-    console.log('a user connected:', socket.id);
+    console.log('Player connected:', socket.id);
+
     // Initialize player
-    players[socket.id] = { x: 50, y: 50, score: 0 };
+    players[socket.id] = { x: Math.random() * 50 - 25, z: Math.random() * 50 - 25, score: 0 };
 
-    // Send current state
-    socket.emit('init', { players, cats });
+    // Send initial state
+    socket.emit('init', { players, cats, id: socket.id });
 
-    // Broadcast new player to others
+    // Notify others
     socket.broadcast.emit('newPlayer', { id: socket.id, player: players[socket.id] });
 
-    // Handle player movement
+    // Handle movement
     socket.on('move', (data) => {
-        if (players[socket.id]) {
-            players[socket.id].x = data.x;
-            players[socket.id].y = data.y;
+        if (!players[socket.id]) return;
+        players[socket.id].x = data.x;
+        players[socket.id].z = data.z;
 
-            // Check for cat collection
-            cats = cats.filter(cat => {
-                if (Math.hypot(cat.x - data.x, cat.y - data.y) < 20) {
-                    players[socket.id].score += 1;
-                    io.to(socket.id).emit('score', players[socket.id].score);
-                    return false; // remove cat
-                }
-                return true;
-            });
+        // Check for cat collection (distance < 1.5 units)
+        cats = cats.filter(cat => {
+            if (Math.hypot(cat.x - data.x, cat.z - data.z) < 1.5) {
+                players[socket.id].score += 1;
+                socket.emit('score', players[socket.id].score);
+                return false;
+            }
+            return true;
+        });
 
-            io.emit('update', { players, cats });
-        }
+        io.emit('update', { players, cats });
     });
 
     socket.on('disconnect', () => {
