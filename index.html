@@ -1003,7 +1003,7 @@
             }
         }
         
-        // Brainrot class
+        // Cat-themed Brainrot class
         class Brainrot {
             constructor(x, y, z, id) {
                 this.id = id;
@@ -1015,11 +1015,13 @@
                 this.owner = null;
                 this.rotation = 0;
                 this.animation = 0;
+                this.eyeOffset = 0;
             }
             
             update(deltaTime) {
                 this.rotation += 0.02;
                 this.animation += 0.05;
+                this.eyeOffset = Math.sin(this.animation) * 0.1;
             }
             
             draw(ctx) {
@@ -1028,33 +1030,75 @@
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 
-                // Draw brainrot with pulsing effect
+                // Draw cat face with eye animation
                 const pulse = Math.sin(this.animation) * 0.2 + 0.8;
                 const size = this.size * pulse;
                 
-                // Outer ring
-                ctx.fillStyle = '#ff00ff';
+                // Draw cat head (circle)
+                ctx.fillStyle = '#FFD700';
                 ctx.beginPath();
                 ctx.arc(0, 0, size, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Inner core
-                ctx.fillStyle = '#ffffff';
+                // Draw cat ears
+                ctx.fillStyle = '#FFA500';
                 ctx.beginPath();
-                ctx.arc(0, 0, size * 0.6, 0, Math.PI * 2);
+                ctx.moveTo(-size * 0.8, -size * 0.8);
+                ctx.lineTo(-size * 0.3, -size);
+                ctx.lineTo(0, -size * 0.5);
+                ctx.closePath();
                 ctx.fill();
                 
-                // Brain pattern
+                ctx.beginPath();
+                ctx.moveTo(size * 0.8, -size * 0.8);
+                ctx.lineTo(size * 0.3, -size);
+                ctx.lineTo(0, -size * 0.5);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Draw whiskers
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(-size * 0.5, -size * 0.2);
+                ctx.lineTo(-size * 0.8, -size * 0.1);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(size * 0.5, -size * 0.2);
+                ctx.lineTo(size * 0.8, -size * 0.1);
+                ctx.stroke();
+                
+                // Draw mouth
+                ctx.beginPath();
+                ctx.arc(0, size * 0.2, size * 0.3, 0, Math.PI);
+                ctx.stroke();
+                
+                // Draw eyes with animation
                 ctx.fillStyle = '#000000';
-                for (let i = 0; i < 8; i++) {
-                    const angle = (i / 8) * Math.PI * 2 + this.rotation;
-                    const radius = size * 0.4;
-                    const x = Math.cos(angle) * radius;
-                    const y = Math.sin(angle) * radius;
-                    ctx.beginPath();
-                    ctx.arc(x, y, size * 0.1, 0, Math.PI * 2);
-                    ctx.fill();
-                }
+                ctx.beginPath();
+                ctx.arc(-size * 0.4, -size * 0.2, size * 0.15, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.arc(size * 0.4, -size * 0.2, size * 0.15, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw pupils with movement
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath();
+                ctx.arc(-size * 0.4 + this.eyeOffset, -size * 0.2, size * 0.05, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.arc(size * 0.4 + this.eyeOffset, -size * 0.2, size * 0.05, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw nose
+                ctx.fillStyle = '#FF69B4';
+                ctx.beginPath();
+                ctx.arc(0, size * 0.1, size * 0.1, 0, Math.PI * 2);
+                ctx.fill();
                 
                 ctx.restore();
             }
@@ -1269,7 +1313,7 @@
             );
             gameState.players.push(gameState.player);
             
-            // Create brainrots
+            // Create cat-themed brainrots
             for (let i = 0; i < 10; i++) {
                 const brainrot = new Brainrot(
                     Math.random() * 400 + 100,
@@ -1734,7 +1778,7 @@
             // Draw brainrots on minimap
             gameState.brainrots.forEach(brainrot => {
                 if (!brainrot.collected) {
-                    mapCtx.fillStyle = '#ff00ff';
+                    mapCtx.fillStyle = '#FFD700';
                     mapCtx.beginPath();
                     mapCtx.arc(brainrot.x / 20, brainrot.y / 20, 2, 0, Math.PI * 2);
                     mapCtx.fill();
