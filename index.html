@@ -553,6 +553,18 @@
             color: #ff00ff;
             font-weight: bold;
         }
+        
+        #offlineMode {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 1.2rem;
+            color: #00ff00;
+        }
     </style>
 </head>
 <body>
@@ -578,11 +590,13 @@
                 </div>
                 
                 <button id="startButton" class="btn">START GAME</button>
+                <button id="offlineButton" class="btn">OFFLINE MODE</button>
                 <button id="howToPlayButton" class="btn">HOW TO PLAY</button>
             </div>
             
             <div id="gameUI">
                 <div id="gameMode">GAME MODE: <span id="currentGameMode">CAPTURE THE BRAINROT</span></div>
+                <div id="offlineMode">OFFLINE MODE</div>
                 <div id="scoreDisplay">SCORE: <span id="scoreValue">0</span></div>
                 <div id="healthBar">
                     <div id="healthFill"></div>
@@ -664,12 +678,7 @@
         </div>
     </div>
 
-    <!-- Include Socket.IO client library -->
-    <script src="/socket.io/socket.io.js"></script>
     <script>
-        // Connect to the server
-        const socket = io();
-        
         // Main game variables
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -685,6 +694,7 @@
         const playerNameInput = document.getElementById('playerNameInput');
         const difficultySelect = document.getElementById('difficultySelect');
         const startButton = document.getElementById('startButton');
+        const offlineButton = document.getElementById('offlineButton');
         const howToPlayButton = document.getElementById('howToPlayButton');
         const restartButton = document.getElementById('restartButton');
         const continueButton = document.getElementById('continueButton');
@@ -711,6 +721,7 @@
         const invincibilityPowerup = document.getElementById('invincibilityPowerup');
         const powerupIndicator = document.getElementById('powerupIndicator');
         const retryButton = document.getElementById('retryButton');
+        const offlineMode = document.getElementById('offlineMode');
         
         // Game state
         let gameState = {
@@ -746,7 +757,8 @@
             timeLeft: 300,
             powerupActive: null,
             powerupTime: 0,
-            powerupDuration: 0
+            powerupDuration: 0,
+            isOffline: false
         };
         
         // Player class
@@ -936,9 +948,6 @@
                 
                 // Create muzzle flash effect
                 this.createMuzzleFlash();
-                
-                // Send to server
-                socket.emit('shoot', { x: this.x, y: this.y, z: this.z, rotation: this.rotation });
             }
             
             createMuzzleFlash() {
@@ -1298,7 +1307,7 @@
         }
         
         // Initialize game
-        function initGame() {
+        function initGame(isOffline = false) {
             // Set canvas dimensions
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -1312,6 +1321,9 @@
             gameState.powerups = [];
             gameState.bullets = [];
             gameState.particles = [];
+            
+            // Set offline mode flag
+            gameState.isOffline = isOffline;
             
             // Create player
             gameState.player = new Player(
@@ -1365,6 +1377,14 @@
             // Hide title screen and show game UI
             titleScreen.style.display = 'none';
             gameUI.style.display = 'block';
+            
+            // Show/hide offline mode indicator
+            if (isOffline) {
+                offlineMode.style.display = 'block';
+            } else {
+                offlineMode.style.display = 'none';
+            }
+            
             loadingScreen.style.display = 'none';
             
             // Start game loop
@@ -1398,12 +1418,14 @@
             // Update player
             gameState.player.update(deltaTime);
             
-            // Update other players
-            gameState.players.forEach(player => {
-                if (player !== gameState.player) {
-                    player.update(deltaTime);
-                }
-            });
+            // Update other players (only in online mode)
+            if (!gameState.isOffline) {
+                gameState.players.forEach(player => {
+                    if (player !== gameState.player) {
+                        player.update(deltaTime);
+                    }
+                });
+            }
             
             // Update brainrots
             gameState.brainrots.forEach(brainrot => {
@@ -1825,8 +1847,16 @@
             loadingScreen.style.display = 'flex';
             retryButton.style.display = 'none';
             setTimeout(() => {
-                // Join the game via socket
-                socket.emit('joinGame', { name: playerNameInput.value || 'Player' });
+                initGame(false); // Online mode
+            }, 1000);
+        });
+        
+        offlineButton.addEventListener('click', () => {
+            gameState.difficulty = difficultySelect.value;
+            loadingScreen.style.display = 'flex';
+            retryButton.style.display = 'none';
+            setTimeout(() => {
+                initGame(true); // Offline mode
             }, 1000);
         });
         
@@ -1846,7 +1876,7 @@
             loadingScreen.style.display = 'flex';
             retryButton.style.display = 'none';
             setTimeout(() => {
-                socket.emit('joinGame', { name: playerNameInput.value || 'Player' });
+                initGame(gameState.isOffline); // Restart with same mode
             }, 1000);
         });
         
@@ -1855,7 +1885,7 @@
             loadingScreen.style.display = 'flex';
             retryButton.style.display = 'none';
             setTimeout(() => {
-                socket.emit('joinGame', { name: playerNameInput.value || 'Player' });
+                initGame(gameState.isOffline); // Restart with same mode
             }, 1000);
         });
         
@@ -1865,7 +1895,7 @@
             retryButton.style.display = 'none';
             document.getElementById('loadingText').textContent = "Loading Robacat...";
             setTimeout(() => {
-                socket.emit('joinGame', { name: playerNameInput.value || 'Player' });
+                initGame(false); // Default to online mode
             }, 1000);
         });
         
@@ -1938,9 +1968,6 @@
                 
                 // Scroll to bottom
                 chatMessages.scrollTop = chatMessages.scrollHeight;
-                
-                // Send to server
-                socket.emit('chatMessage', { text: chatInput.value });
             }
         });
         
@@ -1948,93 +1975,6 @@
         window.addEventListener('resize', () => {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-        });
-        
-        // Socket event handlers
-        socket.on('connect', () => {
-            console.log('Connected to server');
-            clearTimeout(loadingTimeout);
-        });
-        
-        socket.on('disconnect', () => {
-            console.log('Disconnected from server');
-        });
-        
-        socket.on('gameState', (data) => {
-            // Initialize game with data from server
-            gameState.players = data.players;
-            gameState.brainrots = data.brainrots;
-            gameState.powerups = data.powerups;
-            gameState.gameActive = data.gameActive;
-            gameState.gameTime = data.gameTime;
-            
-            // Update player reference
-            gameState.player = gameState.players.find(p => p.id === socket.id);
-            
-            // Start the game
-            initGame();
-        });
-        
-        socket.on('gameFull', () => {
-            alert('Game is full. Please try again later.');
-            loadingScreen.style.display = 'none';
-        });
-        
-        socket.on('playerJoined', (player) => {
-            gameState.players.push(player);
-            gameState.playerCount++;
-        });
-        
-        socket.on('playerLeft', (playerId) => {
-            gameState.players = gameState.players.filter(p => p.id !== playerId);
-            gameState.playerCount--;
-        });
-        
-        socket.on('gameStarted', () => {
-            // Game started, no action needed here since we already initialized
-        });
-        
-        socket.on('playerDied', (data) => {
-            // Handle player death
-            const player = gameState.players.find(p => p.id === data.playerId);
-            if (player) {
-                player.isAlive = false;
-            }
-        });
-        
-        socket.on('brainrotCollected', (data) => {
-            // Handle brainrot collection
-            const brainrot = gameState.brainrots.find(b => b.id === data.brainrotId);
-            if (brainrot) {
-                brainrot.collected = true;
-            }
-        });
-        
-        socket.on('powerupCollected', (data) => {
-            // Handle powerup collection
-            const powerup = gameState.powerups.find(p => p.id === data.powerupId);
-            if (powerup) {
-                gameState.powerups = gameState.powerups.filter(p => p.id !== data.powerupId);
-                applyPowerup(data.type);
-            }
-        });
-        
-        socket.on('bulletFired', (bullet) => {
-            // Add bullet to local game state
-            gameState.bullets.push(bullet);
-        });
-        
-        socket.on('chatMessage', (message) => {
-            chatMessages.innerHTML += `<div class="chatMessage"><strong>${message.name}:</strong> ${message.text}</div>`;
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        });
-        
-        socket.on('gameUpdate', (data) => {
-            // Update game state from server
-            gameState.players = data.players;
-            gameState.brainrots = data.brainrots;
-            gameState.powerups = data.powerups;
-            gameState.gameTime = data.gameTime;
         });
         
         // Initialize game when page loads
