@@ -399,8 +399,22 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Start server
+// Start server with timeout handling
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+const serverInstance = server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+});
+
+// Add timeout for server startup
+setTimeout(() => {
+    if (!serverInstance.listening) {
+        console.error("Server failed to start within 20 seconds");
+        process.exit(1);
+    }
+}, 20000);
+
+// Handle server errors
+serverInstance.on('error', (err) => {
+    console.error('Server error:', err);
+    process.exit(1);
 });
