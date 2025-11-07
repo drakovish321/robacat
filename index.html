@@ -641,6 +641,7 @@
             <div id="loadingScreen">
                 <div class="spinner"></div>
                 <div id="loadingText">Loading Robacat...</div>
+                <button id="retryButton" class="btn" style="display:none; margin-top:20px;">RETRY</button>
             </div>
             
             <div id="notification"></div>
@@ -704,6 +705,7 @@
         const shieldPowerup = document.getElementById('shieldPowerup');
         const invincibilityPowerup = document.getElementById('invincibilityPowerup');
         const powerupIndicator = document.getElementById('powerupIndicator');
+        const retryButton = document.getElementById('retryButton');
         
         // Game state
         let gameState = {
@@ -1796,10 +1798,24 @@
             gameOverScreen.style.display = 'flex';
         }
         
+        // Show loading error
+        function showLoadingError() {
+            const loadingText = document.getElementById('loadingText');
+            const retryButton = document.getElementById('retryButton');
+            
+            loadingText.textContent = "Error: Could not connect to server";
+            retryButton.style.display = "block";
+            clearTimeout(loadingTimeout);
+        }
+
+        // Set timeout for loading
+        let loadingTimeout = setTimeout(showLoadingError, 20000);
+        
         // Event listeners
         startButton.addEventListener('click', () => {
             gameState.difficulty = difficultySelect.value;
             loadingScreen.style.display = 'flex';
+            retryButton.style.display = 'none';
             setTimeout(initGame, 1000);
         });
         
@@ -1817,12 +1833,22 @@
         restartButton.addEventListener('click', () => {
             gameOverScreen.style.display = 'none';
             loadingScreen.style.display = 'flex';
+            retryButton.style.display = 'none';
             setTimeout(initGame, 1000);
         });
         
         continueButton.addEventListener('click', () => {
             victoryScreen.style.display = 'none';
             loadingScreen.style.display = 'flex';
+            retryButton.style.display = 'none';
+            setTimeout(initGame, 1000);
+        });
+        
+        // Retry button functionality
+        retryButton.addEventListener('click', () => {
+            loadingScreen.style.display = 'flex';
+            retryButton.style.display = 'none';
+            document.getElementById('loadingText').textContent = "Loading Robacat...";
             setTimeout(initGame, 1000);
         });
         
