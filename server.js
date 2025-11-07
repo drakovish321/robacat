@@ -9,8 +9,8 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// Serve static files
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve static files from current directory
+app.use(express.static(path.join(__dirname)));
 
 // Game state variables
 let players = {};
